@@ -1,0 +1,6 @@
+{
+  "name": "Gem Forest",
+  "description": "A magical forest match-3 puzzle game with sparkling gems, enchanted coins, and mythical power-ups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
