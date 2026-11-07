@@ -55,6 +55,14 @@ class GamePreferences(context: Context) {
         return LevelRecord(levelNumber, stars, highScore, isUnlocked)
     }
 
+    fun getHighestUnlockedLevel(): Int {
+        var highest = prefs.getInt("highest_unlocked_level", 1)
+        while (getLevelRecord(highest + 1).isUnlocked) {
+            highest++
+        }
+        return highest
+    }
+
     fun saveLevelCompletion(levelNumber: Int, stars: Int, score: Int) {
         val currentRecord = getLevelRecord(levelNumber)
         val editor = prefs.edit()
@@ -66,15 +74,21 @@ class GamePreferences(context: Context) {
             editor.putInt("level_${levelNumber}_high_score", score)
         }
 
-        // Unlock next level if won
-        if (stars > 0 && levelNumber < LevelRepository.levels.size) {
+        // Unlock next level on the endless grape vine if won
+        if (stars > 0) {
             editor.putBoolean("level_${levelNumber + 1}_unlocked", true)
+            val currentHighest = prefs.getInt("highest_unlocked_level", 1)
+            if (levelNumber + 1 > currentHighest) {
+                editor.putInt("highest_unlocked_level", levelNumber + 1)
+            }
         }
 
         editor.apply()
     }
 
     fun getAllLevelRecords(): List<LevelRecord> {
-        return LevelRepository.levels.map { getLevelRecord(it.levelNumber) }
+        val highest = getHighestUnlockedLevel()
+        val totalToShow = (highest + 10).coerceAtLeast(18)
+        return (1..totalToShow).map { getLevelRecord(it) }
     }
 }

@@ -1,7 +1,7 @@
 package com.example.model
 
 object LevelRepository {
-    val levels: List<LevelConfig> = listOf(
+    private val handcraftedLevels: List<LevelConfig> = listOf(
         // Biome 1: Whispering Grove (Introduction to Gem & Coin matching)
         LevelConfig(
             levelNumber = 1,
@@ -190,7 +190,114 @@ object LevelRepository {
         )
     )
 
+    // For backwards compatibility
+    val levels: List<LevelConfig> get() = handcraftedLevels
+
+    /**
+     * Procedural endless title generator based on level number and theme
+     */
+    private val endlessPrefixes = listOf(
+        "Skyward", "Whispering", "Canopy", "Elder", "Mystic", "Sunburst",
+        "Moonlit", "Verdant", "Thorned", "Crystal", "Twilight", "Celestial",
+        "Ancient", "Golden", "Emerald", "Bramble", "Shadow", "Starlight"
+    )
+    private val endlessSuffixes = listOf(
+        "Tendril", "Bower", "Arbor", "Vinecrest", "Grape Hollow", "Grove",
+        "Trellis", "Vine Peak", "Canopy", "Sanctuary", "Orchard", "Spire",
+        "Sap Spring", "Glade", "Thicket", "Overgrowth", "Altar", "Bough"
+    )
+
+    /**
+     * Dynamically retrieves handcrafted or procedurally generated endless levels.
+     * Each successive level increases in challenge: higher scores, tighter moves,
+     * more required coin collection, and intricate moss patterns.
+     */
     fun getLevel(number: Int): LevelConfig {
-        return levels.find { it.levelNumber == number } ?: levels.first()
+        if (number in 1..handcraftedLevels.size) {
+            return handcraftedLevels[number - 1]
+        }
+
+        // Procedural generation for endless climbing levels (13, 14, 15, ... 1000+)
+        val excess = number - 12
+        val biomeIndex = ((number - 1) / 4) % Biome.entries.size
+        val biome = Biome.entries[biomeIndex]
+
+        val prefix = endlessPrefixes[(number * 7) % endlessPrefixes.size]
+        val suffix = endlessSuffixes[(number * 13) % endlessSuffixes.size]
+        val name = "$prefix $suffix"
+
+        // Scaling Difficulty:
+        // 1. Target Score increases progressively
+        val baseScore = 20000 + (excess * 2400)
+        val targetScore = baseScore + (number % 5) * 500
+
+        // 2. Moves become tighter and require smarter special combinations (16 to 26 moves)
+        val maxMoves = when (number % 5) {
+            0 -> 18 // Boss challenge level
+            1 -> 24 // Cascade breather
+            2 -> 20 // Strategic puzzle
+            3 -> 22 // Standard vine
+            else -> 17 // Fast-paced speed challenge
+        }
+
+        // 3. Coins to collect scale up with excess levels
+        val targetCoins = (26 + (excess * 1.5).toInt()).coerceAtMost(50)
+
+        // 4. Moss tiles pattern gets denser
+        val mossCount = (20 + (excess * 0.8).toInt()).coerceAtMost(36)
+        val patternType = number % 4
+        val mossPositions = when (patternType) {
+            0 -> {
+                // Checkerboard pattern
+                (1..6).flatMap { r ->
+                    (1..6).filter { c -> (r + c + number) % 2 == 0 }.map { c -> Position(r, c) }
+                }.take(mossCount)
+            }
+            1 -> {
+                // Outer perimeter borders
+                (1..6).flatMap { r ->
+                    listOf(Position(r, 1), Position(r, 6), Position(1, r), Position(6, r))
+                }.distinct().take(mossCount)
+            }
+            2 -> {
+                // Diamond cluster in center
+                (1..6).flatMap { r ->
+                    (1..6).filter { c -> kotlin.math.abs(r - 3.5f) + kotlin.math.abs(c - 3.5f) <= 3f }
+                        .map { c -> Position(r, c) }
+                }.take(mossCount)
+            }
+            else -> {
+                // Cross / Vine X shape
+                (0..7).flatMap { i ->
+                    listOf(Position(i, i), Position(i, 7 - i))
+                }.distinct().take(mossCount)
+            }
+        }
+
+        val oneStar = targetScore
+        val twoStar = (targetScore * 1.45f).toInt()
+        val threeStar = (targetScore * 1.95f).toInt()
+
+        return LevelConfig(
+            levelNumber = number,
+            name = name,
+            biome = biome,
+            maxMoves = maxMoves,
+            targetScore = targetScore,
+            targetCoins = targetCoins,
+            targetMoss = mossPositions.size,
+            oneStarScore = oneStar,
+            twoStarScore = twoStar,
+            threeStarScore = threeStar,
+            mossPattern = mossPositions
+        )
+    }
+
+    /**
+     * Generates a contiguous list of levels from 1 up to [maxLevel].
+     */
+    fun getLevelsUpTo(maxLevel: Int): List<LevelConfig> {
+        val total = maxLevel.coerceAtLeast(12)
+        return (1..total).map { getLevel(it) }
     }
 }

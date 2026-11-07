@@ -59,6 +59,18 @@ fun HowToPlayModal(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.img_coins_and_gems),
+                            contentDescription = "Magical Coins and Gems",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(16.dp)),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+
+                    item {
                         GuideSection(
                             title = "🌿 Matching Gems & Coins",
                             text = "Swap adjacent tiles to line up 3 or more of the same gem or coin. Matches clear tiles and trigger cascading gravity from above!"

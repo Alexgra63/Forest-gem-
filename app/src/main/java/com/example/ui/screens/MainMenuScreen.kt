@@ -4,20 +4,26 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -47,7 +53,7 @@ fun MainMenuScreen(
         initialValue = 0.98f,
         targetValue = 1.02f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = FastOutSlowInEasing),
+            animation = tween(2400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "titleScale"
@@ -69,8 +75,8 @@ fun MainMenuScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            ForestDarkBackground.copy(alpha = 0.65f),
-                            ForestDarkBackground.copy(alpha = 0.45f),
+                            ForestDarkBackground.copy(alpha = 0.55f),
+                            ForestDarkBackground.copy(alpha = 0.35f),
                             ForestDarkBackground.copy(alpha = 0.85f)
                         )
                     )
@@ -84,22 +90,22 @@ fun MainMenuScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 18.dp)
                 .statusBarsPadding()
                 .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Treasury Bar
+            // Top Treasury Bar with Golden Coin Icon
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .padding(top = 10.dp),
                 horizontalArrangement = Arrangement.End
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = ForestDarkBackground.copy(alpha = 0.85f),
+                    color = ForestDarkBackground.copy(alpha = 0.88f),
                     border = androidx.compose.foundation.BorderStroke(1.5.dp, ForestGold),
                     modifier = Modifier.testTag("coins_treasury")
                 ) {
@@ -107,8 +113,14 @@ fun MainMenuScreen(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🪙", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_forest_gold_coin),
+                            contentDescription = "Gold Coin",
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "$playerCoins Coins",
                             style = MaterialTheme.typography.bodyMedium,
@@ -119,120 +131,87 @@ fun MainMenuScreen(
                 }
             }
 
-            // Title Banner
+            // 3D Carved Wooden "Forest Saga" Title Logo
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.scale(titleScale)
+                modifier = Modifier
+                    .scale(titleScale)
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
             ) {
-                Text(
-                    text = "GEM FOREST",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontSize = 38.sp,
-                    fontWeight = FontWeight.Black,
-                    color = ForestEmeraldLight,
-                    letterSpacing = 3.sp,
-                    textAlign = TextAlign.Center
+                Image(
+                    painter = painterResource(id = R.drawable.title_forest_gems),
+                    contentDescription = "Forest Saga",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .height(135.dp)
                 )
-                Text(
-                    text = "SAGA",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = ForestGold,
-                    letterSpacing = 6.sp,
-                    textAlign = TextAlign.Center
-                )
+
                 Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
                     text = "Enchanted Coins & Mystic Gems",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = StarWhite.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(2f, 2f),
+                            blurRadius = 4f
+                        )
+                    ),
+                    color = ForestEmeraldLight,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center
                 )
             }
 
-            // Menu Action Buttons
+            // The 3 Wooden Banner Buttons (Cut out backgrounds from uploaded asset)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 380.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .widthIn(max = 390.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Play Campaign
-                Button(
+                // Button 1: Play Campaign (using cut-out background 1)
+                WoodBannerButton(
+                    title = "PLAY CAMPAIGN",
+                    subtitle = "Endless Climbing Grapevine",
+                    iconResource = R.drawable.ic_forest_gold_coin,
+                    backgroundResource = R.drawable.btn_wood_banner_1,
                     onClick = onPlayCampaign,
+                    testTag = "play_campaign_button",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("play_campaign_button"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ForestEmeraldDark
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, ForestEmeraldLight)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = ForestGold,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "PLAY CAMPAIGN",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
-                }
+                        .height(62.dp)
+                )
 
-                // Endless Zen
-                Button(
+                // Button 2: Endless Zen (using cut-out background 2)
+                WoodBannerButton(
+                    title = "ENDLESS ZEN",
+                    subtitle = "Relaxing Match-3 Magic",
+                    iconResource = R.drawable.gem_emerald_png,
+                    backgroundResource = R.drawable.btn_wood_banner_2,
                     onClick = onPlayZen,
+                    testTag = "play_zen_button",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
-                        .testTag("play_zen_button"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ForestSurfaceVariant.copy(alpha = 0.9f)
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, SapphireGem)
-                ) {
-                    Text(text = "✨", fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Endless Zen Mode",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = StarWhite
-                    )
-                }
+                        .height(60.dp)
+                )
 
-                // Magical Treasury / Shop
-                OutlinedButton(
+                // Button 3: Power-up Treasury (using cut-out background 3)
+                WoodBannerButton(
+                    title = "POWER-UP TREASURY",
+                    subtitle = "Unlock Mythical Powers",
+                    iconResource = R.drawable.ic_forest_gold_coin,
+                    backgroundResource = R.drawable.btn_wood_banner_3,
                     onClick = onOpenShop,
+                    testTag = "open_shop_button",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .testTag("open_shop_button"),
-                    shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, ForestGold),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = ForestDarkBackground.copy(alpha = 0.7f)
-                    )
-                ) {
-                    Text(text = "🪙", fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Power-up Treasury",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = ForestGold
-                    )
-                }
+                        .height(62.dp)
+                )
 
                 // How to Play Guide
                 TextButton(
@@ -258,16 +237,16 @@ fun MainMenuScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
                     onClick = onToggleSound,
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(ForestDarkBackground.copy(alpha = 0.8f))
+                        .background(ForestDarkBackground.copy(alpha = 0.85f))
                         .border(1.dp, ForestCardBorder, CircleShape)
                         .testTag("toggle_sound_button")
                 ) {
@@ -284,9 +263,9 @@ fun MainMenuScreen(
                 IconButton(
                     onClick = onToggleHaptics,
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(ForestDarkBackground.copy(alpha = 0.8f))
+                        .background(ForestDarkBackground.copy(alpha = 0.85f))
                         .border(1.dp, ForestCardBorder, CircleShape)
                         .testTag("toggle_haptics_button")
                 ) {
@@ -295,6 +274,91 @@ fun MainMenuScreen(
                         contentDescription = "Toggle Haptics",
                         tint = if (hapticsEnabled) ForestEmeraldLight else Color.Gray,
                         modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Cut-out 3D wooden banner button featuring moss, golden trims, and leafy vines.
+ */
+@Composable
+fun WoodBannerButton(
+    title: String,
+    subtitle: String? = null,
+    iconResource: Int? = null,
+    backgroundResource: Int,
+    onClick: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .testTag(testTag)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = false, radius = 48.dp),
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Cut-out wooden banner PNG with leafy vines and gold border
+        Image(
+            painter = painterResource(id = backgroundResource),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Text & Icon content centered within the wooden board area
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (iconResource != null) {
+                Image(
+                    painter = painterResource(id = iconResource),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.9f),
+                            offset = Offset(2f, 2f),
+                            blurRadius = 4f
+                        )
+                    ),
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 1.2.sp,
+                    fontSize = 15.sp
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.8f),
+                                offset = Offset(1f, 1f),
+                                blurRadius = 2f
+                            )
+                        ),
+                        color = ForestGold,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

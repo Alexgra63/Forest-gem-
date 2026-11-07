@@ -154,11 +154,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun nextLevel() {
         val nextNum = _uiState.value.currentLevel.levelNumber + 1
-        if (nextNum <= LevelRepository.levels.size) {
-            startLevel(nextNum)
-        } else {
-            navigateTo(GameScreen.LEVEL_MAP)
-        }
+        startLevel(nextNum)
     }
 
     fun selectPowerUp(powerUp: PowerUpType) {

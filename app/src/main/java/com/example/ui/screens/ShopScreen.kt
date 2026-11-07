@@ -106,8 +106,12 @@ fun ShopScreen(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🪙", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_forest_gold_coin),
+                            contentDescription = "Gold Coin",
+                            modifier = Modifier.size(20.dp).clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "$playerCoins",
                             style = MaterialTheme.typography.titleMedium,
@@ -218,7 +222,11 @@ fun ShopScreen(
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = "🪙", fontSize = 13.sp)
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_forest_gold_coin),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp).clip(CircleShape)
+                                    )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "${powerUp.coinCost}",

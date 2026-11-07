@@ -111,7 +111,8 @@ enum class Biome(val title: String, val subtitle: String, val primaryColor: Colo
     WHISPERING_GROVE("Whispering Grove", "Gentle glades with singing brook crystals", EmeraldGem),
     LUMINESCENT_HOLLOW("Luminescent Hollow", "Bioluminescent flora and mossy stones", ForestEmeraldLight),
     MOONLIT_SANCTUARY("Moonlit Sanctuary", "Silvery night grove of ancient coins", SapphireGem),
-    ELDER_TREE_HEART("Elder Tree Heart", "The mythical core pulsing with raw primal magic", ForestGold)
+    ELDER_TREE_HEART("Elder Tree Heart", "The mythical core pulsing with raw primal magic", ForestGold),
+    CELESTIAL_CANOPY("Celestial Grape Arbor", "Where the mythical grapevine climbs into starry eternity", AmethystGem)
 }
 
 /**

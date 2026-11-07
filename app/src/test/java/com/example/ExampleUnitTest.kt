@@ -74,4 +74,26 @@ class ExampleUnitTest {
         assertTrue(level1.maxMoves > 0)
         assertTrue(level1.targetScore > 0)
     }
+
+    @Test
+    fun endlessGrapevineLevels_scaleDifficultyHigher() {
+        val level12 = LevelRepository.getLevel(12)
+        val level25 = LevelRepository.getLevel(25)
+        val level50 = LevelRepository.getLevel(50)
+
+        assertEquals(25, level25.levelNumber)
+        assertEquals(50, level50.levelNumber)
+
+        // Target score must get progressively higher
+        assertTrue(level25.targetScore > level12.targetScore)
+        assertTrue(level50.targetScore > level25.targetScore)
+
+        // Coin requirement must scale up
+        assertTrue(level25.targetCoins >= level12.targetCoins)
+        assertTrue(level50.targetCoins >= level25.targetCoins)
+
+        // Moves must remain strategic and positive
+        assertTrue(level25.maxMoves in 16..26)
+        assertTrue(level50.maxMoves in 16..26)
+    }
 }

@@ -235,6 +235,7 @@ fun ForestHeaderBar(
                 val coinsMet = coinsCollected >= levelConfig.targetCoins
                 GoalPill(
                     icon = "🪙",
+                    imageRes = com.example.R.drawable.ic_forest_gold_coin,
                     label = "Coins",
                     status = "$coinsCollected / ${levelConfig.targetCoins}",
                     isComplete = coinsMet,
@@ -260,6 +261,7 @@ fun ForestHeaderBar(
 @Composable
 private fun GoalPill(
     icon: String,
+    imageRes: Int? = null,
     label: String,
     status: String,
     isComplete: Boolean,
@@ -279,7 +281,15 @@ private fun GoalPill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = icon, fontSize = 12.sp)
+            if (imageRes != null) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = imageRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp).clip(CircleShape)
+                )
+            } else {
+                Text(text = icon, fontSize = 12.sp)
+            }
             Spacer(modifier = Modifier.width(4.dp))
             Column {
                 Text(
