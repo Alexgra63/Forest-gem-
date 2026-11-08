@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.components.ForestFireflies
+import com.example.ui.components.WoodCircleButton
 import com.example.ui.theme.*
 
 @Composable
@@ -191,7 +193,7 @@ fun MainMenuScreen(
                 WoodBannerButton(
                     title = "ENDLESS ZEN",
                     subtitle = "Relaxing Match-3 Magic",
-                    iconResource = R.drawable.gem_emerald_png,
+                    iconResource = R.drawable.gem_emerald_item,
                     backgroundResource = R.drawable.btn_wood_banner_2,
                     onClick = onPlayZen,
                     testTag = "play_zen_button",
@@ -241,39 +243,31 @@ fun MainMenuScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                WoodCircleButton(
                     onClick = onToggleSound,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(ForestDarkBackground.copy(alpha = 0.85f))
-                        .border(1.dp, ForestCardBorder, CircleShape)
-                        .testTag("toggle_sound_button")
+                    modifier = Modifier.size(50.dp),
+                    testTag = "toggle_sound_button"
                 ) {
                     Icon(
                         imageVector = if (soundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
                         contentDescription = "Toggle Sound",
                         tint = if (soundEnabled) ForestGold else Color.Gray,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(20.dp))
+                Spacer(modifier = Modifier.width(22.dp))
 
-                IconButton(
+                WoodCircleButton(
                     onClick = onToggleHaptics,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(ForestDarkBackground.copy(alpha = 0.85f))
-                        .border(1.dp, ForestCardBorder, CircleShape)
-                        .testTag("toggle_haptics_button")
+                    modifier = Modifier.size(50.dp),
+                    testTag = "toggle_haptics_button"
                 ) {
                     Icon(
                         imageVector = if (hapticsEnabled) Icons.Default.Vibration else Icons.Default.Smartphone,
                         contentDescription = "Toggle Haptics",
                         tint = if (hapticsEnabled) ForestEmeraldLight else Color.Gray,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -294,11 +288,20 @@ fun WoodBannerButton(
     testTag: String,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "wood_banner_scale"
+    )
+
     Box(
         modifier = modifier
+            .scale(animatedScale)
             .testTag(testTag)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = ripple(bounded = false, radius = 48.dp),
                 onClick = onClick
             ),

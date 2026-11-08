@@ -1,26 +1,32 @@
 package com.example.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.model.PowerUpType
 import com.example.ui.theme.*
 
@@ -83,80 +89,94 @@ private fun PowerUpButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "powerup_press_scale"
+    )
+
     val infiniteTransition = rememberInfiniteTransition(label = "SelectedPowerUp")
-    val scale by infiniteTransition.animateFloat(
+    val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isSelected) 1.15f else 1f,
+        targetValue = if (isSelected) 1.14f else 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "pulseScale"
     )
 
-    val borderColor by animateColorAsState(
-        targetValue = when {
-            isSelected -> ForestGold
-            count > 0 -> ForestEmerald
-            else -> ForestCardBorder.copy(alpha = 0.4f)
-        },
-        label = "borderColor"
-    )
+    val totalScale = pulseScale * pressScale
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier.padding(horizontal = 2.dp)
     ) {
         Box(
             modifier = Modifier
-                .scale(scale)
-                .size(46.dp)
+                .scale(totalScale)
+                .size(50.dp)
                 .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = if (isSelected) {
-                            listOf(ForestSurfaceVariant, ForestEmeraldDark)
-                        } else {
-                            listOf(ForestSurface, ForestSurfaceVariant)
-                        }
-                    )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(bounded = true, color = ForestGold),
+                    onClick = onClick
                 )
-                .border(2.dp, borderColor, CircleShape)
                 .testTag("powerup_${powerUp.id}"),
             contentAlignment = Alignment.Center
         ) {
+            // Cut-out circular wooden plaque with braided vines and moss
+            Image(
+                painter = painterResource(id = R.drawable.circle),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Golden glowing border overlay when active/selected
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .border(2.5.dp, ForestGold, CircleShape)
+                )
+            }
+
             Text(
                 text = powerUp.iconSymbol,
-                fontSize = 20.sp
+                fontSize = 22.sp
             )
 
             // Count badge
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(17.dp)
+                    .size(18.dp)
                     .clip(CircleShape)
-                    .background(if (count > 0) ForestGold else Color.Gray)
+                    .background(if (count > 0) ForestGold else Color(0xFF333333))
                     .border(1.dp, Color.Black, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = if (count > 0) "$count" else "+",
-                    color = Color.Black,
+                    color = if (count > 0) Color.Black else Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(3.dp))
 
         Text(
             text = powerUp.title.split(" ").first(),
             style = MaterialTheme.typography.labelSmall,
             color = if (isSelected) ForestGold else TextMuted,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Medium
+            fontSize = 9.5.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }

@@ -116,37 +116,46 @@ fun GamePlayScreen(
                     ),
                     border = androidx.compose.foundation.BorderStroke(2.dp, ForestCardBorder)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp),
-                        verticalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        if (state.board.isNotEmpty()) {
-                            for (r in 0 until Match3Engine.ROWS) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    for (c in 0 until Match3Engine.COLS) {
-                                        val pos = Position(r, c)
-                                        val tile = state.board[r][c]
-                                        val isSelected = state.selectedTile == pos || state.powerUpSwapSource == pos
-                                        val isTargetMode = state.activePowerUp != null
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(4.dp),
+                            verticalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            if (state.board.isNotEmpty()) {
+                                for (r in 0 until Match3Engine.ROWS) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        for (c in 0 until Match3Engine.COLS) {
+                                            val pos = Position(r, c)
+                                            val tile = state.board[r][c]
+                                            val isSelected = state.selectedTile == pos || state.powerUpSwapSource == pos
+                                            val isTargetMode = state.activePowerUp != null
 
-                                        GemTileView(
-                                            tile = tile,
-                                            isSelected = isSelected,
-                                            isTargetMode = isTargetMode,
-                                            onClick = { viewModel.onTileClicked(pos) },
-                                            modifier = Modifier.weight(1f)
-                                        )
+                                            GemTileView(
+                                                tile = tile,
+                                                isSelected = isSelected,
+                                                isTargetMode = isTargetMode,
+                                                onClick = { viewModel.onTileClicked(pos) },
+                                                onSwipe = { dir -> viewModel.onTileSwipe(pos, dir) },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
+
+                        // Radiant special effects overlay (slider white flashes, chain/stack light bursts, treasure canvas wipe)
+                        BoardEffectsOverlay(
+                            effects = state.activeEffects,
+                            onEffectFinished = { effectId -> viewModel.removeEffect(effectId) }
+                        )
                     }
                 }
 
@@ -230,7 +239,7 @@ private fun PauseDialog(
                 modifier = Modifier
                     .widthIn(max = 390.dp)
                     .fillMaxWidth(0.92f)
-                    .aspectRatio(1182f / 1330f)
+                    .aspectRatio(900f / 995f)
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null
@@ -238,7 +247,7 @@ private fun PauseDialog(
                     .testTag("pause_dialog"),
                 contentAlignment = Alignment.Center
             ) {
-                // Background image: Provided file_0000000074e881fa9baa79e8201bf7d1_1bc40558.png
+                // Background image: Provided vine-framed wooden board (bg_pause_frame)
                 Image(
                     painter = painterResource(id = R.drawable.bg_pause_frame),
                     contentDescription = "Pause Board",
@@ -250,7 +259,7 @@ private fun PauseDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 44.dp, vertical = 36.dp),
+                        .padding(start = 32.dp, end = 32.dp, top = 30.dp, bottom = 26.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -369,7 +378,7 @@ private fun VictoryDialog(
                 modifier = Modifier
                     .widthIn(max = 390.dp)
                     .fillMaxWidth(0.92f)
-                    .aspectRatio(1182f / 1330f)
+                    .aspectRatio(900f / 995f)
                     .scale(scaleAnim.value)
                     .testTag("victory_dialog"),
                 contentAlignment = Alignment.Center
@@ -386,7 +395,7 @@ private fun VictoryDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 44.dp, end = 44.dp, top = 26.dp, bottom = 22.dp),
+                        .padding(start = 32.dp, end = 32.dp, top = 26.dp, bottom = 22.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -553,7 +562,7 @@ private fun GameOverDialog(
                 modifier = Modifier
                     .widthIn(max = 390.dp)
                     .fillMaxWidth(0.92f)
-                    .aspectRatio(1182f / 1330f)
+                    .aspectRatio(900f / 995f)
                     .testTag("game_over_dialog"),
                 contentAlignment = Alignment.Center
             ) {
@@ -567,7 +576,7 @@ private fun GameOverDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 44.dp, vertical = 36.dp),
+                        .padding(start = 32.dp, end = 32.dp, top = 30.dp, bottom = 26.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {

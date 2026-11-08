@@ -45,7 +45,8 @@ data class GameUiState(
     val powerUpCounts: Map<PowerUpType, Int> = emptyMap(),
     val levelRecords: List<LevelRecord> = emptyList(),
     val soundEnabled: Boolean = true,
-    val hapticsEnabled: Boolean = true
+    val hapticsEnabled: Boolean = true,
+    val activeEffects: List<BoardVisualEffect> = emptyList()
 )
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
@@ -110,7 +111,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             floatingPraise = null,
             playerCoins = prefs.coins,
             powerUpCounts = PowerUpType.entries.associateWith { prefs.getPowerUpCount(it) },
-            levelRecords = prefs.getAllLevelRecords()
+            levelRecords = prefs.getAllLevelRecords(),
+            activeEffects = emptyList()
         )
     }
 
@@ -132,7 +134,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             isWon = false,
             isGameOver = false,
             isFrenzyActive = false,
-            floatingPraise = "Zen Harmony ✨"
+            floatingPraise = "Zen Harmony ✨",
+            activeEffects = emptyList()
         )
     }
 
@@ -212,8 +215,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = state.copy(selectedTile = pos)
             feedback.playTileSelect()
         } else if (selected == pos) {
-            // Deselect
-            _uiState.value = state.copy(selectedTile = null)
+            // If tapping the already-selected tile and it is a special, activate it!
+            val tile = state.board[pos.row][pos.col]
+            if (tile.special != SpecialType.NONE) {
+                _uiState.value = state.copy(selectedTile = null)
+                activateSpecialTile(pos)
+            } else {
+                // Deselect
+                _uiState.value = state.copy(selectedTile = null)
+            }
         } else if (Match3Engine.isAdjacent(selected, pos)) {
             // Attempt swap!
             attemptSwap(selected, pos)
@@ -221,6 +231,46 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             // Change selection to new tile
             _uiState.value = state.copy(selectedTile = pos)
             feedback.playTileSelect()
+        }
+    }
+
+    fun activateSpecialTile(pos: Position) {
+        val state = _uiState.value
+        if (state.isAnimating || state.isPaused || state.isWon || state.isGameOver) return
+        val tile = state.board[pos.row][pos.col]
+        if (tile.special == SpecialType.NONE) return
+
+        val newMoves = if (state.isZenMode) 999 else (state.movesRemaining - 1).coerceAtLeast(0)
+        _uiState.value = state.copy(selectedTile = null, movesRemaining = newMoves, isAnimating = true)
+
+        detonatePositions(setOf(pos), emptyMap(), 250)
+    }
+
+    fun removeEffect(effectId: Long) {
+        _uiState.value = _uiState.value.copy(
+            activeEffects = _uiState.value.activeEffects.filter { it.id != effectId }
+        )
+    }
+
+
+    fun onTileSwipe(from: Position, direction: SwipeDirection) {
+        val state = _uiState.value
+        if (state.isAnimating || state.isPaused || state.isWon || state.isGameOver) return
+
+        val to = when (direction) {
+            SwipeDirection.UP -> Position(from.row - 1, from.col)
+            SwipeDirection.DOWN -> Position(from.row + 1, from.col)
+            SwipeDirection.LEFT -> Position(from.row, from.col - 1)
+            SwipeDirection.RIGHT -> Position(from.row, from.col + 1)
+        }
+
+        if (to.row in 0 until Match3Engine.ROWS && to.col in 0 until Match3Engine.COLS) {
+            // Check if an active power-up is being targeted
+            if (state.activePowerUp != null) {
+                handlePowerUpTarget(from, state.activePowerUp)
+                return
+            }
+            attemptSwap(from, to)
         }
     }
 
@@ -330,9 +380,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Check for special combo
         val specialComboResult = Match3Engine.executeSpecialCombo(board, p1, p2)
         if (specialComboResult != null) {
-            feedback.playExplosion()
-            _uiState.value = _uiState.value.copy(floatingPraise = "MYTHICAL COMBO! 🌟")
-            applyMatchResultAndCascade(specialComboResult, 1)
+            val praiseText = if (specialComboResult.detonatedTreasureWipes.isNotEmpty()) {
+                "TREASURY UNLEASHED! 👑"
+            } else {
+                "MYTHICAL COMBO! 🌟"
+            }
+            applyMatchResultAndCascade(specialComboResult, 1, praiseText)
             return
         }
 
@@ -353,12 +406,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val matchResult = Match3Engine.findMatches(board, swapFocus)
             if (matchResult.matchedPositions.isNotEmpty()) {
-                if (matchResult.createdSpecials.isNotEmpty()) {
-                    feedback.playSpecialCreation()
-                } else {
-                    feedback.playMatch(comboCount)
-                }
-
                 val praise = when (comboCount) {
                     1 -> if (matchResult.matchedPositions.size >= 5) "Awesome!" else null
                     2 -> "Sweet Magic! ✨"
@@ -382,27 +429,71 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         praise: String? = null
     ) {
         viewModelScope.launch {
+            val newEffects = mutableListOf<BoardVisualEffect>()
+            var effectIdGen = System.currentTimeMillis()
+
+            var hasTreasureWipe = false
+            if (result.detonatedTreasureWipes.isNotEmpty()) {
+                hasTreasureWipe = true
+                feedback.playTreasureOpening()
+                result.detonatedTreasureWipes.forEach { pos ->
+                    newEffects.add(BoardVisualEffect.FullCanvasTreasureWipe(effectIdGen++, pos.row, pos.col))
+                }
+            }
+
+            if (result.detonatedRowFlashes.isNotEmpty() || result.detonatedColFlashes.isNotEmpty()) {
+                feedback.playSwoosh()
+                result.detonatedRowFlashes.forEach { row ->
+                    newEffects.add(BoardVisualEffect.RowSliderFlash(effectIdGen++, row))
+                }
+                result.detonatedColFlashes.forEach { col ->
+                    newEffects.add(BoardVisualEffect.ColSliderFlash(effectIdGen++, col))
+                }
+            }
+
+            if (result.detonatedChainStackBursts.isNotEmpty()) {
+                feedback.playCoinBurst()
+                result.detonatedChainStackBursts.forEach { (pos, isCoin) ->
+                    newEffects.add(BoardVisualEffect.ChainStackLightBurst(effectIdGen++, pos.row, pos.col, isCoin))
+                }
+            }
+
+            // Standard match / creation chimes if no special audio event was played
+            if (newEffects.isEmpty()) {
+                if (result.createdSpecials.isNotEmpty()) {
+                    feedback.playSpecialCreation()
+                } else {
+                    feedback.playMatch(comboCount)
+                }
+            }
+
             val currentScore = _uiState.value.score + result.pointsScored * comboCount
             val currentCoinsInGame = _uiState.value.coinsCollectedInGame + result.coinsCollected
             val currentMossCleared = _uiState.value.mossClearedInGame + result.mossCleared
 
-            // Add collected coins to persistent player treasury
             if (result.coinsCollected > 0) {
                 prefs.coins = prefs.coins + result.coinsCollected
             }
+
+            val effectivePraise = if (hasTreasureWipe) "TREASURY UNLEASHED! 👑" else praise
 
             _uiState.value = _uiState.value.copy(
                 score = currentScore,
                 coinsCollectedInGame = currentCoinsInGame,
                 mossClearedInGame = currentMossCleared,
                 playerCoins = prefs.coins,
-                floatingPraise = praise
+                floatingPraise = effectivePraise,
+                activeEffects = _uiState.value.activeEffects + newEffects
             )
 
-            // Step 1: Animate match departure
-            delay(180)
+            // Step 1: Let the effects and departure shine
+            if (hasTreasureWipe) {
+                delay(480) // Give player moment to see divine white-gold light wipe all canvas!
+            } else {
+                delay(200)
+            }
 
-            // Step 2: Apply gravity & refill
+            // Step 2: Apply gravity & refill (new gems & coins drop into place)
             val refilledBoard = Match3Engine.applyGravityAndRefill(
                 _uiState.value.board,
                 result.matchedPositions,
@@ -410,7 +501,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             )
 
             _uiState.value = _uiState.value.copy(board = refilledBoard)
-            delay(220)
+            delay(240)
 
             // Cascade next wave
             resolveBoardCascades(refilledBoard, comboCount + 1)
@@ -424,7 +515,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isAnimating = true)
-            val expanded = Match3Engine.expandSpecialDetonations(_uiState.value.board, positions)
+            val detInfo = Match3Engine.expandSpecialDetonations(_uiState.value.board, positions)
+            val expanded = detInfo.affectedPositions
 
             var coins = 0
             var moss = 0
@@ -439,11 +531,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 createdSpecials = newSpecials,
                 pointsScored = bonusPoints + (expanded.size * 50),
                 coinsCollected = coins,
-                mossCleared = moss
+                mossCleared = moss,
+                detonatedRowFlashes = detInfo.rowFlashes,
+                detonatedColFlashes = detInfo.colFlashes,
+                detonatedChainStackBursts = detInfo.chainStackBursts,
+                detonatedTreasureWipes = detInfo.treasureWipes
             )
             applyMatchResultAndCascade(result, 1)
         }
     }
+
 
     private fun checkGameStatusAfterTurn() {
         val state = _uiState.value

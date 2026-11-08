@@ -79,10 +79,10 @@ fun HowToPlayModal(
 
                     item {
                         GuideSection(
-                            title = "✨ Special Power Matches",
-                            text = "• Match 4 in a line: Creates a Nature Ray (Row or Column Blaster)!\n" +
-                                   "• Match 5 in T or L shape: Creates a Spore Bomb (detonates a 3x3 area)!\n" +
-                                   "• Match 5 in a straight line: Creates a Prismatic Tree Star! Swap it with any tile to clear every gem or coin of that type!"
+                            title = "✨ Special Power Matches & Effects",
+                            text = "• Match 4 in a line (Slider): Pops with a white flash laser that wipes all gems & coins in that direction with a rushing swoosh sound!\n" +
+                                   "• Match from two sides (T or L shape): Creates a Gem Chain or Coin Stack! When popped, radiant light spreads to each side wiping gems & coins with a sparkling coin burst SFX!\n" +
+                                   "• Match 5 in a straight line: Creates an Enchanted Treasure Chest! When popped, a wooden chest opening sound rings, light spreads over the entire Canvas wiping all tiles, and brand new gems and coins cascade in!"
                         )
                     }
 
@@ -90,8 +90,8 @@ fun HowToPlayModal(
                         GuideSection(
                             title = "⚡ Mythical Combos",
                             text = "Swap two special tiles together for epic board-clearing magic:\n" +
-                                   "• Star + Star: Wipes the entire board!\n" +
-                                   "• Bomb + Blaster: Mega 3-row & 3-column cross blast!\n" +
+                                   "• Chest + Chest: Wipes the entire board!\n" +
+                                   "• Chain/Stack + Blaster: Mega 3-row & 3-column cross blast!\n" +
                                    "• Blaster + Blaster: Simultaneous Row & Column cross!"
                         )
                     }

@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -17,12 +18,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.model.LevelConfig
 import com.example.ui.theme.*
 
@@ -82,65 +89,77 @@ fun ForestHeaderBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(
+            WoodCircleButton(
                 onClick = onPauseClick,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(ForestSurfaceVariant)
-                    .border(1.dp, ForestCardBorder, CircleShape)
-                    .testTag("pause_button")
+                modifier = Modifier.size(46.dp),
+                testTag = "pause_button"
             ) {
                 Icon(
                     imageVector = Icons.Default.Pause,
                     contentDescription = "Pause Game",
-                    tint = ForestEmeraldLight,
-                    modifier = Modifier.size(20.dp)
+                    tint = ForestGold,
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "LEVEL ${levelConfig.levelNumber}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ForestGold,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp
-                )
-                Text(
-                    text = levelConfig.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = StarWhite,
-                    fontWeight = FontWeight.ExtraBold
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                WoodCircleBadge(modifier = Modifier.size(38.dp)) {
+                    Text(
+                        text = "${levelConfig.levelNumber}",
+                        color = Color(0xFFFFF6D8),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(horizontalAlignment = Alignment.Start) {
+                    Text(
+                        text = "LEVEL ${levelConfig.levelNumber}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ForestGold,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp
+                    )
+                    Text(
+                        text = levelConfig.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = StarWhite,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 15.sp
+                    )
+                }
             }
 
             // Moves Remaining Badge
-            Box(
+            WoodCircleBadge(
                 modifier = Modifier
                     .scale(pulseScale)
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(movesBadgeColor)
-                    .border(2.dp, ForestGold, CircleShape)
-                    .testTag("moves_counter"),
-                contentAlignment = Alignment.Center
+                    .size(52.dp)
+                    .testTag("moves_counter")
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                ) {
                     Text(
                         text = "$movesRemaining",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
+                        color = if (movesRemaining <= 5) RubyGem else Color(0xFFFFF6D8),
                         fontWeight = FontWeight.Black,
-                        fontSize = 17.sp,
-                        lineHeight = 17.sp
+                        fontSize = 18.sp,
+                        lineHeight = 18.sp
                     )
                     Text(
                         text = "MOVES",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = ForestGold,
                         fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
                     )
                 }
             }
@@ -215,17 +234,18 @@ fun ForestHeaderBar(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Bottom Row: Goals Badges (Coins & Moss)
+        // Bottom Row: Goals Badges (Target, Coins & Moss)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Target Score Goal
             val scoreMet = score >= levelConfig.targetScore
             GoalPill(
-                icon = "🎯",
+                imageRes = R.drawable.ic_target_bullseye,
                 label = "Target",
-                status = if (scoreMet) "Done!" else "$score / ${levelConfig.targetScore}",
+                status = if (scoreMet) "Done!" else "$score/${levelConfig.targetScore}",
                 isComplete = scoreMet,
                 modifier = Modifier.weight(1f)
             )
@@ -234,10 +254,9 @@ fun ForestHeaderBar(
             if (levelConfig.targetCoins > 0) {
                 val coinsMet = coinsCollected >= levelConfig.targetCoins
                 GoalPill(
-                    icon = "🪙",
-                    imageRes = com.example.R.drawable.ic_forest_gold_coin,
+                    imageRes = R.drawable.ic_forest_gold_coin,
                     label = "Coins",
-                    status = "$coinsCollected / ${levelConfig.targetCoins}",
+                    status = "$coinsCollected/${levelConfig.targetCoins}",
                     isComplete = coinsMet,
                     modifier = Modifier.weight(1f)
                 )
@@ -249,7 +268,7 @@ fun ForestHeaderBar(
                 GoalPill(
                     icon = "🌿",
                     label = "Moss",
-                    status = "$mossCleared / ${levelConfig.targetMoss}",
+                    status = "$mossCleared/${levelConfig.targetMoss}",
                     isComplete = mossMet,
                     modifier = Modifier.weight(1f)
                 )
@@ -260,52 +279,61 @@ fun ForestHeaderBar(
 
 @Composable
 private fun GoalPill(
-    icon: String,
     imageRes: Int? = null,
+    icon: String? = null,
     label: String,
     status: String,
     isComplete: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = if (isComplete) ForestEmeraldDark.copy(alpha = 0.5f) else ForestSurfaceVariant.copy(alpha = 0.7f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isComplete) ForestEmeraldLight else ForestCardBorder
-        )
+    Box(
+        modifier = modifier
+            .aspectRatio(2141f / 642f),
+        contentAlignment = Alignment.Center
     ) {
+        // Wood rounded plank background (un-stretched 2141:642 aspect ratio)
+        Image(
+            painter = painterResource(id = R.drawable.btn_wood_rounded),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
+
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             if (imageRes != null) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = imageRes),
-                    contentDescription = null,
-                    modifier = Modifier.size(15.dp).clip(CircleShape)
+                Image(
+                    painter = painterResource(id = imageRes),
+                    contentDescription = label,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
                 )
-            } else {
-                Text(text = icon, fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+            } else if (icon != null) {
+                Text(text = icon, fontSize = 13.sp)
+                Spacer(modifier = Modifier.width(4.dp))
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            Column {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted,
-                    fontSize = 9.sp
+
+            Text(
+                text = "$label: $status",
+                color = if (isComplete) ForestEmeraldLight else Color(0xFFFFF6D8),
+                fontWeight = FontWeight.Black,
+                fontSize = 11.5.sp,
+                maxLines = 1,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color(0xFF1E0F04),
+                        offset = Offset(1f, 1.5f),
+                        blurRadius = 3f
+                    )
                 )
-                Text(
-                    text = status,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isComplete) ForestEmeraldLight else StarWhite,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp
-                )
-            }
+            )
         }
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -23,6 +24,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -30,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -45,6 +48,7 @@ import com.example.model.LevelConfig
 import com.example.model.LevelRecord
 import com.example.model.LevelRepository
 import com.example.ui.components.ForestFireflies
+import com.example.ui.components.WoodCircleButton
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.sin
@@ -121,19 +125,16 @@ fun LevelMapScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
+                WoodCircleButton(
                     onClick = onBack,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(ForestSurfaceVariant)
-                        .border(1.dp, ForestCardBorder, CircleShape)
-                        .testTag("map_back_button")
+                    modifier = Modifier.size(44.dp),
+                    testTag = "map_back_button"
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back to Menu",
-                        tint = StarWhite
+                        tint = ForestGold,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -221,7 +222,7 @@ fun LevelMapScreen(
                 }
 
                 // Jump to Current Level Floating Button
-                FloatingActionButton(
+                WoodCircleButton(
                     onClick = {
                         coroutineScope.launch {
                             val targetIndex = (highestUnlockedLevel - 1).coerceIn(0, levelsList.size - 1)
@@ -231,16 +232,14 @@ fun LevelMapScreen(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp)
-                        .size(46.dp)
-                        .testTag("jump_to_current_level_button"),
-                    containerColor = ForestEmeraldDark,
-                    contentColor = ForestGold,
-                    shape = CircleShape
+                        .size(50.dp),
+                    testTag = "jump_to_current_level_button"
                 ) {
                     Icon(
                         imageVector = Icons.Default.Navigation,
                         contentDescription = "Jump to active level",
-                        modifier = Modifier.size(22.dp)
+                        tint = ForestGold,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -396,59 +395,65 @@ private fun GrapeStemLevelRow(
                         }
                     }
 
-                    // Circular Grape Gem Orb
+                    val nodeInteractionSource = remember { MutableInteractionSource() }
+                    val isNodePressed by nodeInteractionSource.collectIsPressedAsState()
+                    val nodePressScale by animateFloatAsState(
+                        targetValue = if (isNodePressed && isUnlocked) 0.90f else 1f,
+                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+                        label = "node_press_scale"
+                    )
+
+                    // Circular Wood Vine Level Orb Plaque (circle.png)
                     Box(
                         modifier = Modifier
-                            .size(58.dp)
+                            .scale(pulseScale * nodePressScale)
+                            .size(60.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (isUnlocked) {
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            levelConfig.biome.primaryColor,
-                                            ForestSurfaceVariant,
-                                            Color(0xFF0B1E16)
-                                        )
-                                    )
-                                } else {
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color(0xFF283830),
-                                            Color(0xFF15201A),
-                                            Color(0xFF0B120E)
-                                        )
-                                    )
-                                }
-                            )
-                            .border(
-                                width = if (isCurrentHighest) 2.5.dp else 1.8.dp,
-                                color = if (isCurrentHighest) ForestGold else if (isUnlocked) ForestEmeraldLight else Color.Gray.copy(alpha = 0.4f),
-                                shape = CircleShape
-                            )
-                            .shadow(if (isUnlocked) 8.dp else 0.dp, CircleShape)
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, radius = 30.dp),
+                                interactionSource = nodeInteractionSource,
+                                indication = ripple(bounded = true, color = ForestGold),
                                 enabled = isUnlocked,
                                 onClick = onClick
                             ),
                         contentAlignment = Alignment.Center
                     ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.circle),
+                            contentDescription = "Level ${levelConfig.levelNumber}",
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(if (!isUnlocked) Modifier.alpha(0.55f) else Modifier)
+                        )
+
+                        if (isCurrentHighest) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .border(2.5.dp, ForestGold, CircleShape)
+                            )
+                        }
+
                         if (isUnlocked) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "${levelConfig.levelNumber}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 18.sp
-                                )
-                            }
+                            Text(
+                                text = "${levelConfig.levelNumber}",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    shadow = Shadow(
+                                        color = Color(0xFF1E0E03),
+                                        offset = Offset(1.5f, 2f),
+                                        blurRadius = 3f
+                                    )
+                                ),
+                                color = if (isCurrentHighest) ForestGold else Color(0xFFFFF6D8),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 19.sp
+                            )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Locked",
-                                tint = Color.Gray.copy(alpha = 0.6f),
+                                tint = Color(0xFFCCCCCC).copy(alpha = 0.8f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }

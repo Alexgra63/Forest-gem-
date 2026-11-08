@@ -8,8 +8,21 @@ data class BoardMatchResult(
     val createdSpecials: Map<Position, SpecialType>,
     val pointsScored: Int,
     val coinsCollected: Int,
-    val mossCleared: Int
+    val mossCleared: Int,
+    val detonatedRowFlashes: Set<Int> = emptySet(),
+    val detonatedColFlashes: Set<Int> = emptySet(),
+    val detonatedChainStackBursts: List<Pair<Position, Boolean>> = emptyList(),
+    val detonatedTreasureWipes: List<Position> = emptyList()
 )
+
+data class SpecialDetonationResult(
+    val affectedPositions: Set<Position>,
+    val rowFlashes: Set<Int> = emptySet(),
+    val colFlashes: Set<Int> = emptySet(),
+    val chainStackBursts: List<Pair<Position, Boolean>> = emptyList(),
+    val treasureWipes: List<Position> = emptyList()
+)
+
 
 object Match3Engine {
     const val ROWS = 8
@@ -89,13 +102,8 @@ object Match3Engine {
         val t1 = board[p1.row][p1.col]
         val t2 = board[p2.row][p2.col]
 
-        // Forest Star can be swapped with anything!
-        if (t1.special == SpecialType.FOREST_STAR || t2.special == SpecialType.FOREST_STAR) {
-            return true
-        }
-
-        // Two specials swapped together always trigger combo
-        if (t1.special != SpecialType.NONE && t2.special != SpecialType.NONE) {
+        // Any special swapped with any adjacent tile triggers activation!
+        if (t1.special != SpecialType.NONE || t2.special != SpecialType.NONE) {
             return true
         }
 
@@ -106,6 +114,7 @@ object Match3Engine {
 
         return findMatches(copy).matchedPositions.isNotEmpty()
     }
+
 
     /**
      * Finds all matches on the current board and determines new specials.
@@ -195,8 +204,9 @@ object Match3Engine {
             }
         }
 
-        // Expand matched positions to include special detonations (explosions, blasts)
-        val fullyExpandedMatches = expandSpecialDetonations(board, allMatched)
+        // Expand matched positions to include special detonations (explosions, blasts, wipes)
+        val detInfo = expandSpecialDetonations(board, allMatched)
+        val fullyExpandedMatches = detInfo.affectedPositions
 
         // Calculate points, coins, and moss cleared
         var points = 0
@@ -224,7 +234,11 @@ object Match3Engine {
             createdSpecials = specialsToCreate,
             pointsScored = points,
             coinsCollected = coins,
-            mossCleared = moss
+            mossCleared = moss,
+            detonatedRowFlashes = detInfo.rowFlashes,
+            detonatedColFlashes = detInfo.colFlashes,
+            detonatedChainStackBursts = detInfo.chainStackBursts,
+            detonatedTreasureWipes = detInfo.treasureWipes
         )
     }
 
@@ -234,9 +248,14 @@ object Match3Engine {
     fun expandSpecialDetonations(
         board: Array<Array<BoardTile>>,
         initialMatches: Set<Position>
-    ): Set<Position> {
+    ): SpecialDetonationResult {
         val visited = mutableSetOf<Position>()
         val queue = ArrayDeque<Position>()
+        val rowFlashes = mutableSetOf<Int>()
+        val colFlashes = mutableSetOf<Int>()
+        val chainStackBursts = mutableListOf<Pair<Position, Boolean>>()
+        val treasureWipes = mutableListOf<Position>()
+
         initialMatches.forEach {
             queue.add(it)
             visited.add(it)
@@ -248,18 +267,22 @@ object Match3Engine {
 
             when (tile.special) {
                 SpecialType.ROW_BLAST -> {
+                    rowFlashes.add(current.row)
                     for (c in 0 until COLS) {
                         val p = Position(current.row, c)
                         if (visited.add(p)) queue.add(p)
                     }
                 }
                 SpecialType.COL_BLAST -> {
+                    colFlashes.add(current.col)
                     for (r in 0 until ROWS) {
                         val p = Position(r, current.col)
                         if (visited.add(p)) queue.add(p)
                     }
                 }
                 SpecialType.SPORE_BOMB -> {
+                    chainStackBursts.add(Pair(current, tile.type.isCoin))
+                    // 3x3 surrounding box
                     for (dr in -1..1) {
                         for (dc in -1..1) {
                             val nr = current.row + dr
@@ -270,16 +293,27 @@ object Match3Engine {
                             }
                         }
                     }
-                }
-                SpecialType.FOREST_STAR -> {
-                    // Explodes random color or clears all gems of most common type
-                    val standardType = ItemType.standardGems.random()
-                    for (r in 0 until ROWS) {
-                        for (c in 0 until COLS) {
-                            if (board[r][c].type == standardType) {
-                                val p = Position(r, c)
+                    // Light spread outward along sides (Up, Down, Left, Right)
+                    for (step in 1..2) {
+                        listOf(
+                            Position(current.row - step, current.col),
+                            Position(current.row + step, current.col),
+                            Position(current.row, current.col - step),
+                            Position(current.row, current.col + step)
+                        ).forEach { p ->
+                            if (p.row in 0 until ROWS && p.col in 0 until COLS) {
                                 if (visited.add(p)) queue.add(p)
                             }
+                        }
+                    }
+                }
+                SpecialType.FOREST_STAR -> {
+                    // Enchanted Treasure Chest: Wipes the entire game board canvas!
+                    treasureWipes.add(current)
+                    for (r in 0 until ROWS) {
+                        for (c in 0 until COLS) {
+                            val p = Position(r, c)
+                            if (visited.add(p)) queue.add(p)
                         }
                     }
                 }
@@ -287,7 +321,13 @@ object Match3Engine {
             }
         }
 
-        return visited
+        return SpecialDetonationResult(
+            affectedPositions = visited,
+            rowFlashes = rowFlashes,
+            colFlashes = colFlashes,
+            chainStackBursts = chainStackBursts,
+            treasureWipes = treasureWipes
+        )
     }
 
     /**
@@ -301,88 +341,79 @@ object Match3Engine {
         val t1 = board[p1.row][p1.col]
         val t2 = board[p2.row][p2.col]
 
-        // Forest Star + Forest Star -> Wipe entire board
-        if (t1.special == SpecialType.FOREST_STAR && t2.special == SpecialType.FOREST_STAR) {
+        // 1. Treasure Chest (Forest Star) swapped with ANYTHING -> Full board wipe!
+        if (t1.special == SpecialType.FOREST_STAR || t2.special == SpecialType.FOREST_STAR) {
+            val origin = if (t1.special == SpecialType.FOREST_STAR) p1 else p2
             val allPos = (0 until ROWS).flatMap { r -> (0 until COLS).map { c -> Position(r, c) } }.toSet()
             return BoardMatchResult(
                 matchedPositions = allPos,
                 createdSpecials = emptyMap(),
                 pointsScored = 5000,
                 coinsCollected = allPos.count { board[it.row][it.col].type.isCoin },
-                mossCleared = allPos.count { board[it.row][it.col].hasMoss }
+                mossCleared = allPos.count { board[it.row][it.col].hasMoss },
+                detonatedTreasureWipes = listOf(origin)
             )
         }
 
-        // Forest Star + Any Gem/Coin -> Clear all of that item type
-        if (t1.special == SpecialType.FOREST_STAR || t2.special == SpecialType.FOREST_STAR) {
-            val targetType = if (t1.special == SpecialType.FOREST_STAR) t2.type else t1.type
-            val targetSpecial = if (t1.special == SpecialType.FOREST_STAR) t2.special else t1.special
-
-            val affected = mutableSetOf(p1, p2)
-            for (r in 0 until ROWS) {
-                for (c in 0 until COLS) {
-                    if (board[r][c].type == targetType) {
-                        affected.add(Position(r, c))
-                    }
-                }
-            }
-
-            // If target was a special, turn all affected into that special before detonation
-            val expanded = expandSpecialDetonations(board, affected)
-            return BoardMatchResult(
-                matchedPositions = expanded,
-                createdSpecials = emptyMap(),
-                pointsScored = expanded.size * 100 + 1000,
-                coinsCollected = expanded.count { board[it.row][it.col].type.isCoin },
-                mossCleared = expanded.count { board[it.row][it.col].hasMoss }
-            )
-        }
-
-        // Bomb + Blaster -> Giant 3-row & 3-column cross clear
+        // 2. Bomb + Blaster -> Giant 3-row & 3-column cross clear
         if ((t1.special == SpecialType.SPORE_BOMB && (t2.special == SpecialType.ROW_BLAST || t2.special == SpecialType.COL_BLAST)) ||
             (t2.special == SpecialType.SPORE_BOMB && (t1.special == SpecialType.ROW_BLAST || t1.special == SpecialType.COL_BLAST))
         ) {
             val centerRow = p2.row
             val centerCol = p2.col
             val affected = mutableSetOf<Position>()
+            val rows = mutableSetOf<Int>()
+            val cols = mutableSetOf<Int>()
             for (r in (centerRow - 1)..(centerRow + 1)) {
                 if (r in 0 until ROWS) {
+                    rows.add(r)
                     for (c in 0 until COLS) affected.add(Position(r, c))
                 }
             }
             for (c in (centerCol - 1)..(centerCol + 1)) {
                 if (c in 0 until COLS) {
+                    cols.add(c)
                     for (r in 0 until ROWS) affected.add(Position(r, c))
                 }
             }
-            val expanded = expandSpecialDetonations(board, affected)
+            val det = expandSpecialDetonations(board, affected)
+            val bombPos = if (t1.special == SpecialType.SPORE_BOMB) p1 else p2
+            val isCoin = (if (t1.special == SpecialType.SPORE_BOMB) t1 else t2).type.isCoin
             return BoardMatchResult(
-                matchedPositions = expanded,
+                matchedPositions = det.affectedPositions,
                 createdSpecials = emptyMap(),
-                pointsScored = expanded.size * 90 + 600,
-                coinsCollected = expanded.count { board[it.row][it.col].type.isCoin },
-                mossCleared = expanded.count { board[it.row][it.col].hasMoss }
+                pointsScored = det.affectedPositions.size * 90 + 600,
+                coinsCollected = det.affectedPositions.count { board[it.row][it.col].type.isCoin },
+                mossCleared = det.affectedPositions.count { board[it.row][it.col].hasMoss },
+                detonatedRowFlashes = rows + det.rowFlashes,
+                detonatedColFlashes = cols + det.colFlashes,
+                detonatedChainStackBursts = listOf(Pair(bombPos, isCoin)) + det.chainStackBursts,
+                detonatedTreasureWipes = det.treasureWipes
             )
         }
 
-        // Blaster + Blaster -> Cross clear row AND column
+        // 3. Blaster + Blaster -> Cross clear row AND column
         if ((t1.special == SpecialType.ROW_BLAST || t1.special == SpecialType.COL_BLAST) &&
             (t2.special == SpecialType.ROW_BLAST || t2.special == SpecialType.COL_BLAST)
         ) {
             val affected = mutableSetOf<Position>()
             for (c in 0 until COLS) affected.add(Position(p2.row, c))
             for (r in 0 until ROWS) affected.add(Position(r, p2.col))
-            val expanded = expandSpecialDetonations(board, affected)
+            val det = expandSpecialDetonations(board, affected)
             return BoardMatchResult(
-                matchedPositions = expanded,
+                matchedPositions = det.affectedPositions,
                 createdSpecials = emptyMap(),
-                pointsScored = expanded.size * 80 + 400,
-                coinsCollected = expanded.count { board[it.row][it.col].type.isCoin },
-                mossCleared = expanded.count { board[it.row][it.col].hasMoss }
+                pointsScored = det.affectedPositions.size * 80 + 400,
+                coinsCollected = det.affectedPositions.count { board[it.row][it.col].type.isCoin },
+                mossCleared = det.affectedPositions.count { board[it.row][it.col].hasMoss },
+                detonatedRowFlashes = setOf(p2.row) + det.rowFlashes,
+                detonatedColFlashes = setOf(p2.col) + det.colFlashes,
+                detonatedChainStackBursts = det.chainStackBursts,
+                detonatedTreasureWipes = det.treasureWipes
             )
         }
 
-        // Bomb + Bomb -> Massive 5x5 explosion
+        // 4. Bomb + Bomb -> Massive 5x5 explosion
         if (t1.special == SpecialType.SPORE_BOMB && t2.special == SpecialType.SPORE_BOMB) {
             val affected = mutableSetOf<Position>()
             for (dr in -2..2) {
@@ -394,15 +425,42 @@ object Match3Engine {
                     }
                 }
             }
-            val expanded = expandSpecialDetonations(board, affected)
+            val det = expandSpecialDetonations(board, affected)
             return BoardMatchResult(
-                matchedPositions = expanded,
+                matchedPositions = det.affectedPositions,
                 createdSpecials = emptyMap(),
-                pointsScored = expanded.size * 80 + 500,
-                coinsCollected = expanded.count { board[it.row][it.col].type.isCoin },
-                mossCleared = expanded.count { board[it.row][it.col].hasMoss }
+                pointsScored = det.affectedPositions.size * 80 + 500,
+                coinsCollected = det.affectedPositions.count { board[it.row][it.col].type.isCoin },
+                mossCleared = det.affectedPositions.count { board[it.row][it.col].hasMoss },
+                detonatedRowFlashes = det.rowFlashes,
+                detonatedColFlashes = det.colFlashes,
+                detonatedChainStackBursts = listOf(Pair(p1, t1.type.isCoin), Pair(p2, t2.type.isCoin)) + det.chainStackBursts,
+                detonatedTreasureWipes = det.treasureWipes
             )
         }
+
+        // 5. Single special swapped with normal gem/coin (when not matching 3 of same color)
+        val specialTile = when {
+            t1.special != SpecialType.NONE -> t1
+            t2.special != SpecialType.NONE -> t2
+            else -> null
+        }
+        if (specialTile != null) {
+            val targetPos = if (t1.special != SpecialType.NONE) p2 else p1
+            val det = expandSpecialDetonations(board, setOf(targetPos))
+            return BoardMatchResult(
+                matchedPositions = det.affectedPositions,
+                createdSpecials = emptyMap(),
+                pointsScored = det.affectedPositions.size * 60 + 200,
+                coinsCollected = det.affectedPositions.count { board[it.row][it.col].type.isCoin },
+                mossCleared = det.affectedPositions.count { board[it.row][it.col].hasMoss },
+                detonatedRowFlashes = det.rowFlashes,
+                detonatedColFlashes = det.colFlashes,
+                detonatedChainStackBursts = det.chainStackBursts,
+                detonatedTreasureWipes = det.treasureWipes
+            )
+        }
+
 
         return null
     }

@@ -63,6 +63,138 @@ class SoundAndHaptics(private val context: Context) {
         playNoiseBurst(durationMs = 150)
     }
 
+    /**
+     * White flash swoosh sound for 4-in-a-row Slider row/column wipe.
+     */
+    fun playSwoosh() {
+        vibrateMedium()
+        if (!isSoundEnabled) return
+        audioScope.launch {
+            try {
+                val sampleRate = 22050
+                val durationMs = 300
+                val numSamples = (sampleRate * (durationMs / 1000.0f)).toInt()
+                val samples = ShortArray(numSamples)
+                var filterState = 0.0
+
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val normT = i.toDouble() / numSamples
+
+                    // Smooth swoosh volume curve
+                    val envelope = kotlin.math.sin(normT * Math.PI) * 0.95
+                    val noise = (Math.random() * 2.0 - 1.0)
+
+                    // Swept frequency cutoff (whoosh up and down)
+                    val cutoffFreq = 350.0 + 1700.0 * kotlin.math.sin(normT * Math.PI)
+                    val alpha = (2.0 * Math.PI * cutoffFreq / sampleRate).coerceIn(0.01, 0.95)
+                    filterState += alpha * (noise - filterState)
+
+                    // Airy whistle undertone
+                    val whistle = kotlin.math.sin(2.0 * Math.PI * cutoffFreq * 0.65 * t) * 0.35
+
+                    val value = (filterState * 0.72 + whistle * 0.28) * envelope * 0.88
+                    samples[i] = (value * Short.MAX_VALUE).toInt()
+                        .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                }
+                writeAudio(samples, sampleRate)
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Shimmering metallic coin burst SFX when a chain or stack pops.
+     */
+    fun playCoinBurst() {
+        vibrateDouble()
+        if (!isSoundEnabled) return
+        audioScope.launch {
+            try {
+                val sampleRate = 22050
+                val durationMs = 380
+                val numSamples = (sampleRate * (durationMs / 1000.0f)).toInt()
+                val samples = ShortArray(numSamples)
+
+                val coinPitches = listOf(2093.0, 2489.0, 2793.8, 3136.0, 3520.0, 4186.0)
+                val coinStarts = listOf(0.0, 0.035, 0.07, 0.11, 0.15, 0.20, 0.25)
+
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    var sum = 0.0
+
+                    for (cIdx in coinStarts.indices) {
+                        val cStart = coinStarts[cIdx]
+                        if (t >= cStart) {
+                            val dt = t - cStart
+                            val decay = kotlin.math.exp(-dt * 24.0)
+                            val freq = coinPitches[cIdx % coinPitches.size]
+                            val tone = kotlin.math.sin(2.0 * Math.PI * freq * dt) * 0.65 +
+                                    kotlin.math.sin(2.0 * Math.PI * freq * 2.76 * dt) * 0.35
+                            sum += tone * decay * 0.32
+                        }
+                    }
+
+                    samples[i] = (sum * Short.MAX_VALUE).toInt()
+                        .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                }
+                writeAudio(samples, sampleRate)
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Majestic wooden chest creak followed by radiant golden chime fanfare when a treasure pops.
+     */
+    fun playTreasureOpening() {
+        vibrateCelebration()
+        if (!isSoundEnabled) return
+        audioScope.launch {
+            try {
+                val sampleRate = 22050
+                val durationMs = 700
+                val numSamples = (sampleRate * (durationMs / 1000.0f)).toInt()
+                val samples = ShortArray(numSamples)
+
+                val fanfarePitches = listOf(523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98)
+
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    var value = 0.0
+
+                    // 1. Heavy wooden chest creak (0 to 0.24s)
+                    if (t < 0.24) {
+                        val creakNorm = t / 0.24
+                        val creakFreq = 110.0 + 90.0 * kotlin.math.sin(t * 80.0)
+                        val creakEnv = kotlin.math.sin(creakNorm * Math.PI)
+                        val saw = (t * creakFreq) - kotlin.math.floor(t * creakFreq) - 0.5
+                        value += saw * creakEnv * 0.45
+                    }
+
+                    // 2. Golden Fanfare & Magic Shimmer (0.16s to end)
+                    if (t >= 0.16) {
+                        val fanfareT = t - 0.16
+                        fanfarePitches.forEachIndexed { idx, freq ->
+                            val noteDelay = idx * 0.07
+                            if (fanfareT >= noteDelay) {
+                                val dt = fanfareT - noteDelay
+                                val env = kotlin.math.exp(-dt * 7.0)
+                                val chime = kotlin.math.sin(2.0 * Math.PI * freq * dt) * 0.6 +
+                                        kotlin.math.sin(2.0 * Math.PI * freq * 2.0 * dt) * 0.25 +
+                                        kotlin.math.sin(2.0 * Math.PI * freq * 3.01 * dt) * 0.15
+                                value += chime * env * 0.28
+                            }
+                        }
+                    }
+
+                    samples[i] = (value * Short.MAX_VALUE).toInt()
+                        .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                }
+                writeAudio(samples, sampleRate)
+            } catch (_: Exception) {}
+        }
+    }
+
+
     fun playPowerUpUsed() {
         vibrateDouble()
         playArpeggio()

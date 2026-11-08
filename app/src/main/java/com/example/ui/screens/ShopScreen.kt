@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.PowerUpType
 import com.example.ui.components.ForestFireflies
+import com.example.ui.components.WoodCircleBadge
+import com.example.ui.components.WoodCircleButton
 import com.example.ui.theme.*
 
 @Composable
@@ -66,19 +68,16 @@ fun ShopScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
+                WoodCircleButton(
                     onClick = onBack,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(ForestSurfaceVariant)
-                        .border(1.dp, ForestCardBorder, CircleShape)
-                        .testTag("shop_back_button")
+                    modifier = Modifier.size(44.dp),
+                    testTag = "shop_back_button"
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = StarWhite
+                        tint = ForestGold,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -159,17 +158,8 @@ fun ShopScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(52.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            Brush.radialGradient(
-                                                colors = listOf(ForestSurfaceVariant, ForestEmeraldDark)
-                                            )
-                                        )
-                                        .border(1.5.dp, ForestGold, CircleShape),
-                                    contentAlignment = Alignment.Center
+                                WoodCircleBadge(
+                                    modifier = Modifier.size(52.dp)
                                 ) {
                                     Text(text = powerUp.iconSymbol, fontSize = 24.sp)
                                 }

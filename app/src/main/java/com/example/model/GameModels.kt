@@ -10,15 +10,16 @@ enum class ItemType(
     val displayName: String,
     val primaryColor: Color,
     val accentColor: Color,
-    val isCoin: Boolean
+    val isCoin: Boolean,
+    val drawableRes: Int
 ) {
-    EMERALD("Emerald Gem", EmeraldGem, ForestEmeraldLight, false),
-    RUBY("Ruby Sunstone", RubyGem, Color(0xFFFF85A1), false),
-    SAPPHIRE("Sapphire Tear", SapphireGem, Color(0xFF90E0EF), false),
-    AMETHYST("Amethyst Shard", AmethystGem, Color(0xFFE0AAFF), false),
-    TOPAZ("Topaz Amber", TopazGem, Color(0xFFFFD166), false),
-    GOLD_COIN("Sun Tree Coin", ForestGold, Color(0xFFFFF3B0), true),
-    MOON_COIN("Moon Leaf Coin", ForestSilver, Color(0xFFFFFFFF), true);
+    EMERALD("Emerald Gem", EmeraldGem, ForestEmeraldLight, false, com.example.R.drawable.gem_emerald_item),
+    RUBY("Ruby Sunstone", RubyGem, Color(0xFFFF85A1), false, com.example.R.drawable.gem_ruby_item),
+    SAPPHIRE("Sapphire Tear", SapphireGem, Color(0xFF90E0EF), false, com.example.R.drawable.gem_sapphire_item),
+    AMETHYST("Amethyst Shard", AmethystGem, Color(0xFFE0AAFF), false, com.example.R.drawable.gem_amethyst_item),
+    TOPAZ("Topaz Amber", TopazGem, Color(0xFFFFD166), false, com.example.R.drawable.gem_topaz_item),
+    GOLD_COIN("Sun Tree Coin", ForestGold, Color(0xFFFFF3B0), true, com.example.R.drawable.coin_gold_item),
+    MOON_COIN("Moon Leaf Coin", ForestSilver, Color(0xFFFFFFFF), true, com.example.R.drawable.coin_moon_item);
 
     companion object {
         val standardGems = listOf(EMERALD, RUBY, SAPPHIRE, AMETHYST, TOPAZ)
@@ -141,3 +142,46 @@ data class LevelRecord(
     val highScore: Int,
     val isUnlocked: Boolean
 )
+
+/**
+ * Swipe directions for moving gems and coins.
+ */
+enum class SwipeDirection {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT
+}
+
+/**
+ * Dynamic visual effects rendered on the game board canvas.
+ */
+sealed class BoardVisualEffect(open val id: Long) {
+    data class RowSliderFlash(
+        override val id: Long,
+        val row: Int,
+        val durationMs: Int = 400
+    ) : BoardVisualEffect(id)
+
+    data class ColSliderFlash(
+        override val id: Long,
+        val col: Int,
+        val durationMs: Int = 400
+    ) : BoardVisualEffect(id)
+
+    data class ChainStackLightBurst(
+        override val id: Long,
+        val row: Int,
+        val col: Int,
+        val isCoinStack: Boolean,
+        val durationMs: Int = 500
+    ) : BoardVisualEffect(id)
+
+    data class FullCanvasTreasureWipe(
+        override val id: Long,
+        val originRow: Int,
+        val originCol: Int,
+        val durationMs: Int = 850
+    ) : BoardVisualEffect(id)
+}
+

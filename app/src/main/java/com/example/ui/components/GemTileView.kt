@@ -2,7 +2,9 @@ package com.example.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
@@ -14,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -22,13 +25,20 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.model.BoardTile
 import com.example.model.ItemType
 import com.example.model.SpecialType
+import com.example.model.SwipeDirection
 import com.example.ui.theme.*
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -38,6 +48,7 @@ fun GemTileView(
     isSelected: Boolean,
     isTargetMode: Boolean,
     onClick: () -> Unit,
+    onSwipe: (SwipeDirection) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Pulse animation for selected or special tiles
@@ -65,26 +76,60 @@ fun GemTileView(
         modifier = modifier
             .aspectRatio(1f)
             .padding(1.5.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, radius = 24.dp),
-                onClick = onClick
-            )
+            .pointerInput(tile.row, tile.col) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var totalDrag = Offset.Zero
+                    var swiped = false
+                    val pointerId = down.id
+                    val swipeThreshold = 18.dp.toPx()
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.find { it.id == pointerId } ?: break
+
+                        if (change.changedToUp()) {
+                            if (!swiped && totalDrag.getDistance() < 12.dp.toPx()) {
+                                onClick()
+                            }
+                            break
+                        }
+
+                        val drag = change.positionChange()
+                        totalDrag += drag
+
+                        if (!swiped && (abs(totalDrag.x) >= swipeThreshold || abs(totalDrag.y) >= swipeThreshold)) {
+                            swiped = true
+                            change.consume()
+                            val dir = if (abs(totalDrag.x) > abs(totalDrag.y)) {
+                                if (totalDrag.x > 0) SwipeDirection.RIGHT else SwipeDirection.LEFT
+                            } else {
+                                if (totalDrag.y > 0) SwipeDirection.DOWN else SwipeDirection.UP
+                            }
+                            onSwipe(dir)
+                            break
+                        }
+                    }
+                }
+            }
             .testTag("tile_${tile.row}_${tile.col}"),
         contentAlignment = Alignment.Center
     ) {
+        val currentScale = if (isSelected) pulseScale else 1f
+
+        // 1. Moss & Selection/Target Ring underlay
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
             val center = Offset(w / 2f, h / 2f)
             val radius = w * 0.42f
 
-            // 1. Draw Moss base layer if tile has moss
+            // Draw Moss base layer if tile has moss
             if (tile.hasMoss) {
                 drawMossLayer(center, radius)
             }
 
-            // 2. Draw Selector / Target Ring
+            // Draw Selector / Target Ring
             if (isSelected) {
                 drawCircle(
                     color = ForestGold.copy(alpha = 0.35f),
@@ -106,28 +151,46 @@ fun GemTileView(
                     style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
+        }
 
-            // 3. Draw Gem or Coin
-            val currentScale = if (isSelected) pulseScale else 1f
-            val itemRadius = radius * currentScale
-
-            when (tile.type) {
-                ItemType.GOLD_COIN -> drawGoldenCoin(center, itemRadius)
-                ItemType.MOON_COIN -> drawSilverMoonCoin(center, itemRadius)
-                ItemType.EMERALD -> drawEmeraldGem(center, itemRadius)
-                ItemType.RUBY -> drawRubyGem(center, itemRadius)
-                ItemType.SAPPHIRE -> drawSapphireGem(center, itemRadius)
-                ItemType.AMETHYST -> drawAmethystGem(center, itemRadius)
-                ItemType.TOPAZ -> drawTopazGem(center, itemRadius)
+        // 2. High-Resolution Bright & Saturated PNG Sprite (Base item, Gem Chain / Coin Stack, or Treasure Chest)
+        val spriteRes = when (tile.special) {
+            SpecialType.FOREST_STAR -> com.example.R.drawable.item_treasure_chest
+            SpecialType.SPORE_BOMB -> when (tile.type) {
+                ItemType.EMERALD -> com.example.R.drawable.item_chain_emerald
+                ItemType.RUBY -> com.example.R.drawable.item_chain_ruby
+                ItemType.SAPPHIRE -> com.example.R.drawable.item_chain_sapphire
+                ItemType.AMETHYST -> com.example.R.drawable.item_chain_amethyst
+                ItemType.TOPAZ -> com.example.R.drawable.item_chain_topaz
+                ItemType.GOLD_COIN -> com.example.R.drawable.item_stack_gold_coin
+                ItemType.MOON_COIN -> com.example.R.drawable.item_stack_moon_coin
             }
+            else -> tile.type.drawableRes
+        }
 
-            // 4. Draw Special overlay effects (Row ray, Col ray, Spore Bomb, Prismatic Star)
-            when (tile.special) {
-                SpecialType.ROW_BLAST -> drawRowBlastIndicator(center, itemRadius)
-                SpecialType.COL_BLAST -> drawColBlastIndicator(center, itemRadius)
-                SpecialType.SPORE_BOMB -> drawSporeBombIndicator(center, itemRadius, pulseScale)
-                SpecialType.FOREST_STAR -> drawForestStarOverlay(center, itemRadius, starRotation)
-                SpecialType.NONE -> { /* no-op */ }
+        Image(
+            painter = painterResource(id = spriteRes),
+            contentDescription = tile.type.displayName,
+            modifier = Modifier
+                .fillMaxSize(if (tile.special == SpecialType.SPORE_BOMB) 0.98f else 0.95f)
+                .scale(currentScale),
+            contentScale = ContentScale.Fit
+        )
+
+        // 3. Special indicator overlays (Row ray & Col ray)
+        if (tile.special == SpecialType.ROW_BLAST || tile.special == SpecialType.COL_BLAST) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val center = Offset(w / 2f, h / 2f)
+                val radius = w * 0.42f
+                val itemRadius = radius * currentScale
+
+                when (tile.special) {
+                    SpecialType.ROW_BLAST -> drawRowBlastIndicator(center, itemRadius)
+                    SpecialType.COL_BLAST -> drawColBlastIndicator(center, itemRadius)
+                    else -> { /* no-op */ }
+                }
             }
         }
     }
